@@ -9,94 +9,116 @@ from model import (
     simulate_combined
 )
 
-if st.button("← Voltar ao início", key="back_to_app"):
-    st.session_state.selected_model = None
-    st.rerun()
 
-
-
+st.set_page_config(
+    page_title="SimTrigo — Simulador",
+    page_icon="📈",
+    layout="wide"
+)
 
 st.markdown("""
 <style>
+/* ------------------------------------------------------------------
+   SimTrigo — institutional light interface
+   ------------------------------------------------------------------ */
 .block-container {
-    max-width: 1450px;
-    padding-top: 1.8rem;
-    padding-bottom: 2.5rem;
+    max-width: 1480px;
+    padding-top: 1.25rem;
+    padding-bottom: 3rem;
 }
+
 .simtrigo-header {
     border-left: 5px solid #1f4e79;
-    padding: 1.05rem 1.35rem;
-    margin: 0 0 1.5rem 0;
-    background: #f5f7fa;
-    border-top: 1px solid #e0e5ea;
-    border-right: 1px solid #e0e5ea;
-    border-bottom: 1px solid #e0e5ea;
-    border-radius: 0 7px 7px 0;
+    padding: 1.1rem 1.4rem;
+    margin: 0 0 1.25rem 0;
+    background: linear-gradient(90deg, #f3f6f9 0%, #ffffff 100%);
+    border-top: 1px solid #d9e2ea;
+    border-right: 1px solid #d9e2ea;
+    border-bottom: 1px solid #d9e2ea;
+    border-radius: 0 8px 8px 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
 }
 .simtrigo-title {
     margin: 0;
     color: #17365d;
-    font-size: 2.05rem;
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    font-size: 2.15rem;
+    font-weight: 750;
+    letter-spacing: -0.03em;
 }
 .simtrigo-subtitle {
     margin-top: .35rem;
     color: #5d6872;
-    font-size: .96rem;
+    font-size: .95rem;
 }
-.sidebar-section {
-    margin: .9rem 0 .45rem 0;
-    padding: .52rem .7rem;
-    background: rgba(255,255,255,.78);
-    border: 1px solid #c7d5e2;
-    border-radius: 6px;
-    color: #17365d;
-    font-size: .78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .045em;
-}
+
+/* Sidebar */
 section[data-testid="stSidebar"],
 section[data-testid="stSidebar"] > div {
-    background: #dbeafe !important;
+    background: #e7f0f8 !important;
 }
 section[data-testid="stSidebar"] {
-    border-right: 1px solid #c7d5e2;
+    border-right: 1px solid #c5d5e4;
 }
 section[data-testid="stSidebar"] .stMarkdown,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] [data-testid="stWidgetLabel"],
 section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-    color: #0f172a !important;
+    color: #17212b !important;
 }
-section[data-testid="stSidebar"] input {
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea,
+section[data-testid="stSidebar"] [data-baseweb="select"] > div {
     color: #17212b !important;
     background: #ffffff !important;
+    border-color: #b9c9d8 !important;
 }
+section[data-testid="stSidebar"] [data-testid="stNumberInputContainer"] button {
+    background: #f7fafc !important;
+    color: #17365d !important;
+}
+.sidebar-section {
+    margin: 1rem 0 .45rem 0;
+    padding: .55rem .7rem;
+    background: rgba(255,255,255,.78);
+    border: 1px solid #bfd0df;
+    border-left: 3px solid #1f4e79;
+    border-radius: 6px;
+    color: #17365d;
+    font-size: .76rem;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+}
+
+/* Metrics */
 [data-testid="stMetric"] {
-    background: #f7f9fb;
-    border: 1px solid #d8e0e7;
+    background: #ffffff;
+    border: 1px solid #d6dfe7;
     border-radius: 8px;
-    padding: .8rem .9rem;
+    padding: .85rem .95rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
 }
 [data-testid="stMetricLabel"] {
     color: #5d6872 !important;
-    font-size: .80rem !important;
+    font-size: .78rem !important;
+    font-weight: 600 !important;
 }
 [data-testid="stMetricValue"] {
     color: #17365d !important;
-    font-size: 1.35rem !important;
+    font-size: 1.38rem !important;
+    font-weight: 700 !important;
 }
+
+/* Sections and cards */
 .result-section {
-    margin-top: .25rem;
-    padding: .7rem 0 .25rem 0;
-    border-bottom: 2px solid #e1e6eb;
+    margin-top: .35rem;
+    padding: .75rem 0 .35rem 0;
+    border-bottom: 2px solid #dce4eb;
 }
 .result-section-title {
     color: #17365d;
-    font-size: 1.28rem;
-    font-weight: 700;
+    font-size: 1.25rem;
+    font-weight: 750;
 }
 .result-section-note {
     color: #68737d;
@@ -104,14 +126,43 @@ section[data-testid="stSidebar"] input {
     margin-top: .15rem;
 }
 .chart-card {
-    border: 1px solid #d9e0e6;
+    border: 1px solid #d8e0e7;
     border-radius: 8px;
-    padding: .15rem .35rem .1rem .35rem;
+    padding: .25rem .45rem .1rem .45rem;
     background: #ffffff;
-    margin-bottom: .7rem;
+    margin: .65rem 0 1rem 0;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .035);
 }
 hr {
-    border-color: #dce2e7 !important;
+    border-color: #dce3e9 !important;
+}
+
+/* Expanders / controls */
+div[data-testid="stExpander"] {
+    border: 1px solid #d7e0e7;
+    border-radius: 8px;
+    background: #ffffff;
+}
+div[data-testid="stExpander"] summary {
+    color: #17365d;
+    font-weight: 650;
+}
+button[kind="secondary"],
+button[kind="primary"] {
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+}
+
+/* Download button */
+.stDownloadButton button {
+    border: 1px solid #1f4e79 !important;
+    color: #1f4e79 !important;
+    background: #ffffff !important;
+    border-radius: 6px !important;
+    font-weight: 650 !important;
+}
+.stDownloadButton button:hover {
+    background: #eef4f9 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -260,6 +311,10 @@ with st.sidebar:
         )
 
     st.divider()
+    st.markdown('<div class="sidebar-section">Efeitos ativados</div>', unsafe_allow_html=True)
+
+
+
 par = {
     "T": T, "a_0": a_0, "L_0": L_0, "P_0": P_0, "W_0": W_0, "E_0": E_0,
     "P_d0": P_d0, "P_a0": P_a0, "P_x0": P_x0,
@@ -277,6 +332,19 @@ df = simulate_combined(
     activate_L=activate_L, L_growth=L_growth,
 )
 
+active_effects = []
+if activate_shock:
+    active_effects.append(f"choque estrutural: {DISPLAY_LABELS.get(variable, variable)} {shock_pct:+.2f}% no período {shock_period} ({persistence.lower()})")
+if activate_pa:
+    active_effects.append("indexação de $P^m$")
+if activate_L:
+    active_effects.append(f"crescimento de $l$ ({L_growth:+.4f})")
+
+if active_effects:
+    st.success("Efeitos ativados simultaneamente: " + "; ".join(active_effects) + ". W e E seguem a indexação configurada.")
+else:
+    st.info("Nenhum efeito opcional ativado. W e E seguem a indexação configurada.")
+
 
 
 cols = st.columns(5)
@@ -292,34 +360,56 @@ st.divider()
 groups = VARIABLE_GROUPS
 
 
+CHART_COLORS = ["#1F4E79", "#2E7D6B", "#B36B2C", "#6B5B95", "#A23B3B"]
+
 def style_chart(fig, title, y_title=None, x_title="Período", height=470):
     fig.update_layout(
-        title=dict(text=title, x=0.01, xanchor="left", font=dict(size=17)),
+        template="plotly_white",
+        title=dict(
+            text=title,
+            x=0.01,
+            xanchor="left",
+            y=0.98,
+            yanchor="top",
+            font=dict(size=17, color="#17365d")
+        ),
         height=height,
-        margin=dict(l=65, r=30, t=110, b=55),
+        margin=dict(l=68, r=30, t=78, b=92),
         hovermode="x unified",
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        font=dict(size=12),
-        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0)
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(size=12, color="#334155"),
+        legend=dict(
+            orientation="h",
+            yanchor="top", y=-0.18,
+            xanchor="left", x=0,
+            bgcolor="rgba(255,255,255,0)",
+            font=dict(size=11, color="#475569")
+        )
     )
     fig.update_xaxes(
-        title=x_title, showline=True, linewidth=1, linecolor="#9aa5af",
-        ticks="outside", showgrid=False, zeroline=False
+        title=x_title,
+        title_font=dict(size=12, color="#475569"),
+        showline=True, linewidth=1, linecolor="#9aa5af",
+        ticks="outside", showgrid=False, zeroline=False,
+        tickfont=dict(color="#475569")
     )
     fig.update_yaxes(
-        title=y_title, showline=True, linewidth=1, linecolor="#9aa5af",
-        ticks="outside", gridcolor="#e7ebef", gridwidth=1,
-        zeroline=True, zerolinecolor="#b8c0c7", zerolinewidth=1
+        title=y_title,
+        title_font=dict(size=12, color="#475569"),
+        showline=True, linewidth=1, linecolor="#9aa5af",
+        ticks="outside", gridcolor="#e6ebef", gridwidth=1,
+        zeroline=True, zerolinecolor="#b8c0c7", zerolinewidth=1,
+        tickfont=dict(color="#475569")
     )
     return fig
 
 def add_series(fig, df, variables):
-    for v in variables:
+    for i, v in enumerate(variables):
         fig.add_trace(go.Scatter(
             x=df["period"], y=df[v], mode="lines",
             name=DISPLAY_LABELS.get(v, v),
-            line=dict(width=2.2),
+            line=dict(width=2.25, color=CHART_COLORS[i % len(CHART_COLORS)]),
             hovertemplate=DISPLAY_LABELS.get(v, v) + ": %{y:.5f}<extra></extra>"
         ))
     return fig
