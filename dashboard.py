@@ -84,7 +84,7 @@ LABELS = {
     "P":"Preço agregado (P)", "P1":"Preço do bem 1 (P₁)", "P2":"Preço do bem 2 (P₂)",
     "p":"Inflação (p)", "p1":"Inflação do bem 1 (p₁)", "p2":"Inflação do bem 2 (p₂)",
     "W":"Salário nominal (W)", "e":"Câmbio (E)", "w":"Crescimento do salário nominal (w)",
-    "e_growth":"Crescimento do câmbio (e)", "pm1_growth":"Inflação do preço monitorado 1 (pᵐ₁)", "pm2_growth":"Inflação do preço monitorado 2 (pᵐ₂)", "w_share":"Parcela do salário (w_share)",
+    "e_growth":"Crescimento do câmbio (e)", "b_hat":"Crescimento do salário real (b̂)", "pm1_growth":"Inflação do preço monitorado 1 (pᵐ₁)", "pm2_growth":"Inflação do preço monitorado 2 (pᵐ₂)", "w_share":"Parcela do salário (w_share)",
     "b":"Salário real (b)", "b1":"Salário real em trigo (b₁)", "b2":"Salário real em ferro (b₂)",
     "WE":"W/E", "n":"n agregado", "n1":"n₁", "n2":"n₂",
     "n1d":"n₁ᵈ", "n1m":"n₁ᵐ", "n1X":"n₁ˣ", "n2d":"n₂ᵈ", "n2m":"n₂ᵐ", "n2X":"n₂ˣ",
@@ -99,7 +99,7 @@ LABELS = {
 }
 
 GRAPH_GROUPS = {
-    "Inflação": ["w", "e_growth", "p", "p1", "p2"],
+    "Inflação": ["w", "e_growth", "p", "p1", "p2", "b_hat"],
     "Salário real, W/E e parcela do salário": ["b", "b1", "b2", "WE", "w_share"],
     "n — margens nominais": ["n", "n1", "n2", "n1d", "n1m", "n1X", "n2d", "n2m", "n2X"],
     "m — margens reais": ["m", "m1", "m2", "m1d", "m1m", "m1X", "m2d", "m2m", "m2X"],
@@ -317,50 +317,35 @@ def build_results_pdf(df, input_rows, calculated_rows, graph_groups, special=Fal
     story.append(Spacer(1, 7*mm))
     story.append(Paragraph("Trajetórias simuladas", section_style))
     story.append(Paragraph(
-        "Os gráficos abaixo reproduzem as séries do estado atual da simulação. A exportação é feita em alta resolução para preservar a legibilidade em impressão e ampliação.",
+        "Cada série é apresentada em um gráfico individual, evitando que diferenças de escala ocultem trajetórias menores. A exportação é feita em alta resolução para preservar a legibilidade em impressão e ampliação.",
         note_style,
     ))
     story.append(PageBreak())
 
-    def graph_png(group_title, variables):
-        # 300 dpi gives print-quality raster graphics while keeping the PDF size reasonable.
+    def graph_png(series_title, variable):
+        # Each series gets its own graph so differences in scale cannot hide
+        # the trajectory of smaller-magnitude variables. 300 dpi gives
+        # print-quality raster graphics while keeping the PDF size reasonable.
         fig, ax = plt.subplots(figsize=(11.0, 5.4), dpi=300)
         ax.set_facecolor("#FFFFFF")
         fig.patch.set_facecolor("#FFFFFF")
-        colors_cycle = plt.rcParams["axes.prop_cycle"].by_key().get("color", [])
-        if group_title == "PARCELA DO SALÁRIO E B" and "B" in variables and "w_share" in variables:
-            ax2 = ax.twinx()
-        else:
-            ax2 = None
-        for i, v in enumerate(variables):
-            if v not in df.columns:
-                continue
-            y = pd.to_numeric(df[v], errors="coerce").round(12)
-            color = colors_cycle[i % len(colors_cycle)] if colors_cycle else None
-            target = ax2 if (ax2 is not None and v == "B") else ax
-            target.plot(
-                df["period"], y, linewidth=2.0, label=LABELS.get(v, v),
-                color=color, antialiased=True,
+        if variable in df.columns:
+            y = pd.to_numeric(df[variable], errors="coerce").round(12)
+            ax.plot(
+                df["period"], y, linewidth=2.0,
+                label=LABELS.get(variable, variable),
+                antialiased=True,
             )
-        ax.set_title(group_title, loc="left", fontsize=16, fontweight="bold", color="#17365D", pad=12)
+        ax.set_title(series_title, loc="left", fontsize=16, fontweight="bold", color="#17365D", pad=12)
         ax.set_xlabel("Período", color="#536675", fontsize=10)
         ax.set_ylabel("Valor", color="#536675", fontsize=10)
         ax.grid(True, axis="y", linewidth=0.5, alpha=0.28)
         ax.spines[["top", "right"]].set_visible(False)
         ax.tick_params(labelsize=9, colors="#536675")
-        handles, labels = ax.get_legend_handles_labels()
-        if ax2 is not None:
-            ax2.set_ylabel("B", color="#536675", fontsize=10)
-            ax2.spines["top"].set_visible(False)
-            ax2.tick_params(labelsize=9, colors="#536675")
-            h2, l2 = ax2.get_legend_handles_labels()
-            handles += h2
-            labels += l2
-        if handles:
-            ax.legend(
-                handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.12),
-                ncol=min(5, len(labels)), frameon=False, fontsize=9,
-            )
+        ax.legend(
+            loc="upper center", bbox_to_anchor=(0.5, -0.12),
+            ncol=1, frameon=False, fontsize=9,
+        )
         fig.tight_layout(rect=[0, 0.05, 1, 1])
         out = io.BytesIO()
         fig.savefig(out, format="png", dpi=300, bbox_inches="tight", facecolor="white")
@@ -368,11 +353,18 @@ def build_results_pdf(df, input_rows, calculated_rows, graph_groups, special=Fal
         out.seek(0)
         return out
 
-    for idx, (title, variables) in enumerate(graph_groups):
-        story.append(Paragraph(title, section_style))
-        story.append(Image(graph_png(title, variables), width=252*mm, height=118*mm))
-        if idx < len(graph_groups) - 1:
-            story.append(PageBreak())
+    graph_index = 0
+    # One figure per series: never combine variables on the same axes.
+    graph_items = [(group_title, variable) for group_title, variables in graph_groups for variable in variables if variable in df.columns]
+    for group_title, variable in graph_items:
+            label = LABELS.get(variable, variable)
+            # The graph already contains its own title. Do not add a second
+            # ReportLab title above it: that duplicate title also causes
+            # Unicode/subscript rendering problems for some series labels.
+            story.append(Image(graph_png(f"{group_title} — {label}", variable), width=252*mm, height=118*mm))
+            graph_index += 1
+            if graph_index < len(graph_items):
+                story.append(PageBreak())
 
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
     buffer.seek(0)
@@ -539,7 +531,7 @@ with st.sidebar:
     # sector-2 series in the dashboard graphs.
     if special:
         GRAPH_GROUPS_ACTIVE = {
-            "Inflação": ["w", "e_growth", "p", "p1"],
+            "Inflação": ["w", "e_growth", "p", "p1", "b_hat"],
             "Salário real, W/E e parcela do salário": ["b", "b1", "WE", "w_share"],
             "n — margens nominais": ["n", "n1", "n1d", "n1m", "n1X"],
             "m — margens reais": ["m", "m1", "m1d", "m1m", "m1X"],
@@ -938,6 +930,7 @@ except Exception as exc:
 df["e_growth"] = df["e"].pct_change()
 df["pm1_growth"] = df["P1m"].pct_change()
 df["pm2_growth"] = df["P2m"].pct_change()
+df["b_hat"] = df["b"].pct_change()
 
 # Period 0 displays the user-specified inherited/initial growth rates.
 # From period 1 onward, the indexation equations determine subsequent growth.
@@ -945,6 +938,10 @@ if idx_w:
     df.loc[df.index[0], "w"] = initial_w_growth
 else:
     df.loc[df.index[0], "w"] = 0.0
+
+# Initial real-wage growth: b = W/P, so b̂₀ = (1+w₀)/(1+p₀)-1.
+# Subsequent periods are obtained directly from the simulated real-wage path.
+df.loc[df.index[0], "b_hat"] = (1.0 + initial_w_growth) / (1.0 + initial_inflation) - 1.0
 if idx_e:
     df.loc[df.index[0], "e_growth"] = initial_e_growth
 else:
