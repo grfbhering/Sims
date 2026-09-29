@@ -1029,8 +1029,20 @@ pdf_graph_groups = [
     ("PREÇOS EM UNIDADES DO BEM 1", GRAPH_GROUPS_ACTIVE["Preços em unidades do bem 1"]),
 ]
 
-# Build the PDF from the exact current state of the simulation.
-pdf_bytes = build_results_pdf(df, pdf_input_rows, pdf_calculated_rows, pdf_graph_groups, special=special)
+# PDF generation is intentionally lazy: building the report creates one
+# high-resolution figure per series, so doing it on every Streamlit rerun
+# makes the dashboard unnecessarily slow. The report is generated only when
+# the user explicitly requests it.
+pdf_signature = (
+    model_name, T,
+    tuple((str(k), repr(v)) for k, v in pdf_input_rows),
+    tuple((str(k), repr(v)) for k, v in pdf_calculated_rows),
+    tuple((str(g), tuple(vars_)) for g, vars_ in pdf_graph_groups),
+    int(pd.util.hash_pandas_object(df, index=True).sum()),
+)
+if st.session_state.get("pdf_signature") != pdf_signature:
+    st.session_state.pop("pdf_bytes", None)
+    st.session_state.pop("pdf_signature", None)
 
 # The report control is rendered directly in the blue banner, beside the title.
 header_left, header_right = st.columns([4.7, 1.3], gap="small")
@@ -1041,10 +1053,18 @@ with header_left:
         unsafe_allow_html=True,
     )
 with header_right:
+    if st.button("Gerar relatório PDF", use_container_width=True, key="generate_pdf_report"):
+        with st.spinner("Gerando relatório PDF…"):
+            st.session_state["pdf_bytes"] = build_results_pdf(
+                df, pdf_input_rows, pdf_calculated_rows, pdf_graph_groups, special=special
+            )
+            st.session_state["pdf_signature"] = pdf_signature
+
+if st.session_state.get("pdf_signature") == pdf_signature and st.session_state.get("pdf_bytes"):
     st.download_button(
-        "Gerar relatório PDF",
-        data=pdf_bytes,
-        file_name=f"{"trigo" if special else "trigo_ferro"}_relatorio.pdf",
+        "Baixar relatório PDF",
+        data=st.session_state["pdf_bytes"],
+        file_name=f"{'trigo' if special else 'trigo_ferro'}_relatorio.pdf",
         mime="application/pdf",
         use_container_width=True,
         key="download_pdf_report",
