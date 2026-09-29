@@ -84,7 +84,7 @@ LABELS = {
     "P":"Preço agregado (P)", "P1":"Preço do bem 1 (P₁)", "P2":"Preço do bem 2 (P₂)",
     "p":"Inflação (p)", "p1":"Inflação do bem 1 (p₁)", "p2":"Inflação do bem 2 (p₂)",
     "W":"Salário nominal (W)", "e":"Câmbio (E)", "w":"Crescimento do salário nominal (w)",
-    "e_growth":"Crescimento do câmbio (e)", "w_share":"Parcela do salário (w_share)",
+    "e_growth":"Crescimento do câmbio (e)", "pm1_growth":"Inflação do preço monitorado 1 (pᵐ₁)", "pm2_growth":"Inflação do preço monitorado 2 (pᵐ₂)", "w_share":"Parcela do salário (w_share)",
     "b":"Salário real (b)", "b1":"Salário real em trigo (b₁)", "b2":"Salário real em ferro (b₂)",
     "WE":"W/E", "n":"n agregado", "n1":"n₁", "n2":"n₂",
     "n1d":"n₁ᵈ", "n1m":"n₁ᵐ", "n1X":"n₁ˣ", "n2d":"n₂ᵈ", "n2m":"n₂ᵐ", "n2X":"n₂ˣ",
@@ -569,8 +569,8 @@ with st.sidebar:
 
         l1 = num("l₁", .125, "l1", 0)
         l2 = 0.0 if special else num("l₂", .20, "l2", 0)
-        X1 = num("X₁", .10, "X1", 0)
-        X2 = 0.0 if special else num("X₂", .10, "X2", 0)
+        X1 = num("X₁", 1.0, "X1", 0)
+        X2 = 1.0 if special else num("X₂", 1.0, "X2", 0)
 
         st.markdown("**Coeficiente de conteúdo doméstico**")
         dc1, dc2 = st.columns(2)
@@ -593,11 +593,11 @@ with st.sidebar:
 
         apply_l_growth = st.checkbox("Aplicar crescimento aos coeficientes de trabalho (l)", False, key="apply_l_growth")
         if apply_l_growth:
-            g_l1 = num("Taxa de crescimento de l₁", 0.0, "g_l1", min_value=-1.0, max_value=.99, step=.005)
+            g_l1 = num("Taxa de decrescimento de l₁", 0.0, "g_l1", min_value=-1.0, max_value=.99, step=.005)
             if special:
                 g_l2 = 0.0
             else:
-                g_l2 = num("Taxa de crescimento de l₂", 0.0, "g_l2", min_value=-1.0, max_value=.99, step=.005)
+                g_l2 = num("Taxa de decrescimento de l₂", 0.0, "g_l2", min_value=-1.0, max_value=.99, step=.005)
             st.latex(r"l_{1,t}=\frac{l_{1,t-1}}{1+g_{l1}}")
             if not special:
                 st.latex(r"l_{2,t}=\frac{l_{2,t-1}}{1+g_{l2}}")
@@ -627,7 +627,7 @@ with st.sidebar:
             st.number_input("x₁", value=1.0, min_value=0.0, max_value=1.0, step=0.01, format="%.4g", disabled=True, key="x1_trigo_display")
             st.caption("No caso Trigo: x₁=1 e x₂=0.")
         else:
-            x1 = num("x₁", .60, "x1", 0, .01)
+            x1 = num("x₁", .50, "x1", 0, .01)
             x1 = min(max(x1,0),1)
             x2 = 1-x1
         phi1d = num("φ₁d", .60, "phi1d", 0, .01)
@@ -645,8 +645,6 @@ with st.sidebar:
 
     with st.expander("Condições iniciais", expanded=False):
         W0 = num("W inicial",1.0,"W0",1e-9)
-        initial_inflation = num("Inflação inicial (p₀)",0.03,"initial_inflation",-0.99,.005)
-        st.caption("Taxa de inflação herdada do período anterior; por exemplo, 3% = 0,03.")
         E0 = num("E inicial",1.0,"E0",1e-9)
         P1d0 = num("P₁d inicial",1.0,"P1d0",1e-9)
         P1m0 = num("P₁m inicial",1.0,"P1m0",1e-9)
@@ -654,6 +652,19 @@ with st.sidebar:
         P2m0 = 1.0 if special else num("P₂m inicial",1.0,"P2m0",1e-9)
         P1X0 = num("P₁ˣ",1.0,"P1X0",1e-9)
         P2X0 = 1.0 if special else num("P₂ˣ",1.0,"P2X0",1e-9)
+
+        st.markdown("**Taxas de crescimento iniciais**")
+        gc1, gc2, gc3 = st.columns(3)
+        with gc1:
+            initial_inflation = num("Inflação inicial (p₀)",0.03,"initial_inflation",-0.99,.005)
+            initial_w_growth = num("Crescimento inicial de W (w₀)",0.03,"initial_w_growth",-0.99,.005)
+        with gc2:
+            initial_e_growth = num("Crescimento inicial de E (e₀)",0.03,"initial_e_growth",-0.99,.005)
+            initial_pm1_growth = num("Crescimento inicial de Pᵐ₁ (pᵐ₁,₀)",0.03,"initial_pm1_growth",-0.99,.005)
+        with gc3:
+            initial_pm2_growth = (0.0 if special else
+                                  num("Crescimento inicial de Pᵐ₂ (pᵐ₂,₀)",0.03,"initial_pm2_growth",-0.99,.005))
+        st.caption("Taxas herdadas do período anterior. Elas determinam a primeira transição (de t=0 para t=1) e não precisam ser iguais aos k's. A partir de t=1, quando a indexação está ativa, entram as equações de indexação definidas abaixo.")
 
         # Initial sectoral prices are implied by the market-specific prices,
         # the exchange rate and the φ shares; they are not independent inputs.
@@ -711,10 +722,10 @@ with st.sidebar:
             pm1c1, pm1c2 = st.columns(2)
             with pm1c1:
                 st.latex(r"k_{m1}")
-                km1 = num("", 0.03, "km1", step=.005)
+                km1 = num("", 0.0, "km1", step=.005)
             with pm1c2:
                 st.latex(r"\alpha_{m1}")
-                alpha_m1 = num("", 0.0, "alpha_m1", step=.05)
+                alpha_m1 = num("", 1.0, "alpha_m1", step=.05)
             st.latex(r"p^m_{1,t}=k_{m1}+\alpha_{m1}p_{t-1}")
             st.latex(r"P^m_{1,t}=P^m_{1,t-1}(1+p^m_{1,t})")
         else:
@@ -725,10 +736,10 @@ with st.sidebar:
             pm2c1, pm2c2 = st.columns(2)
             with pm2c1:
                 st.latex(r"k_{m2}")
-                km2 = num("", 0.03, "km2", step=.005)
+                km2 = num("", 0.0, "km2", step=.005)
             with pm2c2:
                 st.latex(r"\alpha_{m2}")
-                alpha_m2 = num("", 0.0, "alpha_m2", step=.05)
+                alpha_m2 = num("", 1.0, "alpha_m2", step=.05)
             st.latex(r"p^m_{2,t}=k_{m2}+\alpha_{m2}p_{t-1}")
             st.latex(r"P^m_{2,t}=P^m_{2,t-1}(1+p^m_{2,t})")
         else:
@@ -736,31 +747,33 @@ with st.sidebar:
 
         idx_w = st.checkbox("Indexar salário nominal (W)", True, key="idx_w")
         if idx_w:
-            wc1,wc2,wc3 = st.columns(3)
+            wc1, wc2 = st.columns(2)
             with wc1:
-                st.latex(r"F_W")
-                Fw = num("",0.0,"Fw",0.0,.25)
-            with wc2:
-                st.latex(r"F_P")
-                Fp = num("",1.0,"Fp",0.01,.25)
-            with wc3:
                 st.latex(r"k_W")
                 kW = num("",0.03,"kW",step=.005)
-            alphaW = Fw/(Fw+Fp)
+            with wc2:
+                fwc1, fwc2 = st.columns(2)
+                with fwc1:
+                    st.latex(r"F_W")
+                    Fw = num("",0.0,"Fw",0.0,.25)
+                with fwc2:
+                    st.latex(r"F_P")
+                    Fp = num("",1.0,"Fp",0.01,.25)
             st.latex(r"\alpha_W=\frac{F_W}{F_W+F_P}")
+            alphaW = Fw/(Fw+Fp)
             st.latex(r"w_t=k_W+\alpha_Wp_{t-1}")
         else:
             Fw=Fp=kW=alphaW=0.0
 
         idx_e = st.checkbox("Indexar taxa de câmbio (E)", True, key="idx_e")
         if idx_e:
-            ec1,ec2 = st.columns(2)
+            ec1, ec2 = st.columns(2)
             with ec1:
-                st.latex(r"\alpha_E")
-                alphaE = num("",0.0,"alphaE",step=.05)
-            with ec2:
                 st.latex(r"k_E")
-                kE = num("",0.03,"kE",step=.005)
+                kE = num("",0.0,"kE",step=.005)
+            with ec2:
+                st.latex(r"\alpha_E")
+                alphaE = num("",1.0,"alphaE",step=.05)
             st.latex(r"e_t=k_E+\alpha_Ep_{t-1}")
         else:
             alphaE=kE=0.0
@@ -874,15 +887,20 @@ for t in range(1, T + 1):
         st.error(f"A simulação não pôde ser executada no período {t}: {exc}"); st.stop()
     p_prev = float(np.nan_to_num(df_t["p"].iloc[t-1], nan=0.0))
 
+    # t=0 carries the inherited growth rates supplied in the initial
+    # conditions. Those rates generate the first transition, t=0 -> t=1.
+    # From t=2 onward, if indexation is active, the indexation equations
+    # determine the subsequent growth rates using the previous period's
+    # realized inflation. This keeps the inherited rates independent of k's.
     if idx_w:
-        W_growth = kW if t == 1 else (kW + alphaW * p_prev)
+        W_growth = initial_w_growth if t == 1 else (kW + alphaW * p_prev)
         W[t] = W[t-1] * (1 + W_growth)
         if shock_W_active and t == shock_period:
             W[t] *= shock_factor
     else:
         W[t] = W_base[t]
     if idx_e:
-        E_growth = kE if t == 1 else (kE + alphaE * p_prev)
+        E_growth = initial_e_growth if t == 1 else (kE + alphaE * p_prev)
         E[t] = E[t-1] * (1 + E_growth)
         if shock_E_active and t == shock_period:
             E[t] *= shock_factor
@@ -900,12 +918,12 @@ for t in range(1, T + 1):
           + d22_path[t-1]*A[t-1,1,1]*prevP2
           + (1-d22_path[t-1])*A[t-1,1,1]*E[t-1]*P2X[t-1])
     if idx_pm1:
-        p_m1_prev = km1 if t == 1 else (km1 + alpha_m1 * p_prev)
+        p_m1_prev = initial_pm1_growth if t == 1 else (km1 + alpha_m1 * p_prev)
         P1m_path[t] = P1m_path[t-1] * (1 + p_m1_prev)
         if abs(c1) > 1e-12:
             n1m[t] = (P1m_path[t] / (1+T1_path[t]) - W[t]*l[t,0]) / c1 - 1
     if idx_pm2:
-        p_m2_prev = km2 if t == 1 else (km2 + alpha_m2 * p_prev)
+        p_m2_prev = initial_pm2_growth if t == 1 else (km2 + alpha_m2 * p_prev)
         P2m_path[t] = P2m_path[t-1] * (1 + p_m2_prev)
         if abs(c2) > 1e-12:
             n2m[t] = (P2m_path[t] / (1+T2_path[t]) - W[t]*l[t,1]) / c2 - 1
@@ -918,17 +936,27 @@ except Exception as exc:
 
 # Derived quantities used by the requested graph groups.
 df["e_growth"] = df["e"].pct_change()
+df["pm1_growth"] = df["P1m"].pct_change()
+df["pm2_growth"] = df["P2m"].pct_change()
 
-# The initial displayed growth rates are the autonomous components k.
-# Subsequent periods keep the realized growth rates from the simulated paths.
+# Period 0 displays the user-specified inherited/initial growth rates.
+# From period 1 onward, the indexation equations determine subsequent growth.
 if idx_w:
-    df.loc[df.index[0], "w"] = kW
+    df.loc[df.index[0], "w"] = initial_w_growth
 else:
     df.loc[df.index[0], "w"] = 0.0
 if idx_e:
-    df.loc[df.index[0], "e_growth"] = kE
+    df.loc[df.index[0], "e_growth"] = initial_e_growth
 else:
     df.loc[df.index[0], "e_growth"] = 0.0
+
+# Period 0 also records the inherited growth rates of monitored prices.
+# From period 1 onward these are calculated directly from the simulated Pᵐ paths.
+df.loc[df.index[0], "pm1_growth"] = initial_pm1_growth
+if special:
+    df.loc[df.index[0], "pm2_growth"] = np.nan
+else:
+    df.loc[df.index[0], "pm2_growth"] = initial_pm2_growth
 
 df["WE"] = df["W"] / df["e"]
 for col in ["P","P1d","P1m","P1X","P2d","P2m","P2X"]:
@@ -962,7 +990,8 @@ pdf_input_rows = [
     ("x₁", x1), ("x₂", x2),
     ("φ₁d", phi1d), ("φ₁m", phi1m), ("φ₁x", phi1x),
     ("φ₂d", phi2d), ("φ₂m", phi2m), ("φ₂x", phi2x),
-    ("W inicial", W0), ("p₀", initial_inflation), ("E inicial", E0),
+    ("W inicial", W0), ("w₀", initial_w_growth), ("p₀", initial_inflation),
+    ("E inicial", E0), ("e₀", initial_e_growth),
     ("P₁d inicial", P1d0), ("P₁m inicial", P1m0),
     ("P₂d inicial", P2d0), ("P₂m inicial", P2m0),
     ("P₁ˣ inicial", P1X0), ("P₂ˣ inicial", P2X0),
@@ -971,7 +1000,8 @@ pdf_input_rows = [
     ("F_W", Fw), ("F_P", Fp), ("k_W", kW), ("α_W", alphaW),
     ("Indexação de E", "Ativa" if idx_e else "Desativada"),
     ("k_E", kE), ("α_E", alphaE),
-    ("k_m1", km1), ("α_m1", alpha_m1), ("k_m2", km2), ("α_m2", alpha_m2),
+    ("k_m1", km1), ("α_m1", alpha_m1), ("pᵐ₁,₀", initial_pm1_growth),
+    ("k_m2", km2), ("α_m2", alpha_m2), ("pᵐ₂,₀", initial_pm2_growth),
     ("Crescimento de l ativo", "Sim" if apply_l_growth else "Não"),
     ("g_l1", g_l1), ("g_l2", g_l2),
     ("Choque ativo", "Sim" if use_shock else "Não"),
