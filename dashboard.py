@@ -35,13 +35,18 @@ st.markdown("""
 <style>
 .block-container{max-width:1800px;padding-top:2.8rem;padding-bottom:1.4rem;padding-left:1rem;padding-right:1rem}
 .tab-header{margin-top:0;background:linear-gradient(90deg,#163f68 0%,#245b89 100%);color:#fff;margin:0 -1rem 1rem;padding:2.05rem 2.25rem 1.35rem;border-bottom:1px solid #173b5f;overflow:visible}
-[data-testid="stDownloadButton"] button{border-radius:5px!important;border:1px solid #d7e5f2!important;background:#fff!important;color:#17365d!important;font-weight:700!important;box-shadow:0 1px 2px rgba(0,0,0,.12)!important}
-[data-testid="stDownloadButton"] button:hover{border-color:#fff!important;background:#f3f7fa!important;color:#17365d!important}
+[data-testid="stDownloadButton"]{width:fit-content!important;display:block!important;margin:0 auto!important}
+[data-testid="stDownloadButton"] button{border-radius:5px!important;border:1px solid #17365d!important;background:#17365d!important;background-color:#17365d!important;color:#fff!important;font-weight:700!important;box-shadow:0 1px 2px rgba(0,0,0,.12)!important;padding:.45rem .9rem!important;width:auto!important;min-width:0!important;display:inline-flex!important;white-space:nowrap!important}
+[data-testid="stDownloadButton"] button p,[data-testid="stDownloadButton"] button span{color:#fff!important}
+[data-testid="stDownloadButton"] button:hover{border-color:#244a78!important;background:#244a78!important;color:#fff!important}
+[data-testid="stDownloadButton"] button:hover p,[data-testid="stDownloadButton"] button:hover span{color:#fff!important}
 .tab-title{font-family:Georgia,serif;font-size:2.15rem;line-height:1.2;font-weight:700;letter-spacing:.01em;white-space:nowrap}
 .tab-subtitle{font-family:Georgia,serif;font-size:1.08rem;font-weight:600;margin-top:.38rem}
 div[data-testid="stHorizontalBlock"]:has(.tab-title){background:linear-gradient(90deg,#163f68 0%,#245b89 100%);color:#fff;margin:0 -1rem 1rem;padding:1.45rem 2.25rem 1.05rem;border-bottom:1px solid #173b5f;align-items:center}
-div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"]{display:flex;justify-content:flex-end;align-items:center;height:100%}
-div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"] button{min-width:190px}
+div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stButton"],div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"]{display:flex;justify-content:flex-end;align-items:center;height:100%}
+div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stButton"] button,div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"] button{min-width:0;width:auto!important;border-radius:5px!important;border:1px solid #fff!important;background:#fff!important;color:#17365d!important;font-weight:700!important;box-shadow:0 1px 2px rgba(0,0,0,.12)!important;padding:.45rem .8rem!important;white-space:nowrap}
+div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stButton"] button:hover,div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"] button:hover{background:#eef3f7!important;border-color:#fff!important;color:#17365d!important}
+div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"] button p,div[data-testid="stHorizontalBlock"]:has(.tab-title) [data-testid="stDownloadButton"] button span{color:#17365d!important}
 section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#f3f6f9!important}
 section[data-testid="stSidebar"]{border-right:1px solid #d7e0e8}
 section[data-testid="stSidebar"]{min-width:292px!important;max-width:292px!important}
@@ -1044,31 +1049,43 @@ if st.session_state.get("pdf_signature") != pdf_signature:
     st.session_state.pop("pdf_bytes", None)
     st.session_state.pop("pdf_signature", None)
 
-# The report control is rendered directly in the blue banner, beside the title.
-header_left, header_right = st.columns([4.7, 1.3], gap="small")
+# The report controls stay together in the blue banner.
+pdf_ready = (
+    st.session_state.get("pdf_signature") == pdf_signature
+    and bool(st.session_state.get("pdf_bytes"))
+)
+
+header_left, header_generate, header_download = st.columns([4.2, 1.35, 1.35], gap="small")
 with header_left:
     st.markdown(
         '<div class="tab-title">SIMULATOR TABAJARA</div>'
         '<div class="tab-subtitle">Seus problemas acabaram!</div>',
         unsafe_allow_html=True,
     )
-with header_right:
-    if st.button("Gerar relatório PDF", use_container_width=True, key="generate_pdf_report"):
-        with st.spinner("Gerando relatório PDF…"):
-            st.session_state["pdf_bytes"] = build_results_pdf(
-                df, pdf_input_rows, pdf_calculated_rows, pdf_graph_groups, special=special
-            )
-            st.session_state["pdf_signature"] = pdf_signature
-
-if st.session_state.get("pdf_signature") == pdf_signature and st.session_state.get("pdf_bytes"):
-    st.download_button(
-        "Baixar relatório PDF",
-        data=st.session_state["pdf_bytes"],
-        file_name=f"{'trigo' if special else 'trigo_ferro'}_relatorio.pdf",
-        mime="application/pdf",
-        use_container_width=True,
-        key="download_pdf_report",
+with header_generate:
+    generate_report = st.button(
+        "Gerar relatório PDF",
+        use_container_width=False,
+        key="generate_pdf_report",
     )
+with header_download:
+    if pdf_ready:
+        st.download_button(
+            "Baixar relatório PDF",
+            data=st.session_state["pdf_bytes"],
+            file_name=f"{'trigo' if special else 'trigo_ferro'}_relatorio.pdf",
+            mime="application/pdf",
+            use_container_width=False,
+            key="download_pdf_report",
+        )
+
+if generate_report:
+    with st.spinner("Gerando relatório PDF…"):
+        st.session_state["pdf_bytes"] = build_results_pdf(
+            df, pdf_input_rows, pdf_calculated_rows, pdf_graph_groups, special=special
+        )
+        st.session_state["pdf_signature"] = pdf_signature
+    st.rerun()
 
 kpi = st.columns([1.1, 1.0, 1.0, 1.0, 1.0, 1.55])
 summary = [
